@@ -1,0 +1,25 @@
+{
+  "name": "techcrunch-reader",
+  "version": "0.0.1",
+  "description": "Reads news from TechCrunch with Alexa",
+  "main": "index.js",
+  "dependencies": {
+    "cheerio": "^0.22.0",
+    "request": "^2.79.0"
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dexity/techcrunch-reader.git"
+  },
+  "keywords": [
+    "reader",
+    "TechCrunch"
+  ],
+  "author": "Alex Dementsov",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/dexity/techcrunch-reader.git/issues"
+  },
+  "homepage": "https://github.com/dexity/techcrunch-reader.git#readme"
+}

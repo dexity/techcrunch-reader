@@ -1,0 +1,27 @@
+ListCategoryIntent menus
+ListCategoryIntent menu options
+ListCategoryIntent categories
+ListCategoryIntent tell menus
+ListCategoryIntent tell menu options
+ListCategoryIntent tell categories
+ListCategoryIntent list menus
+ListCategoryIntent list menu options
+ListCategoryIntent list categories
+ListByCategoryIntent {Category} category
+ListByCategoryIntent list {Category} category
+ListByCategoryIntent list articles for {Category} category
+ListByCategoryIntent list articles from {Category} category
+ArticleIntent read news
+ArticleIntent read articles
+ArticleIntent read latest news
+ArticleIntent read articles from {Category}
+ArticleIntent read articles from {Category} category
+ArticleIntent article {Order}
+ArticleIntent article {Order} from {Category}
+ArticleIntent article {Order} from {Category} category
+ArticleIntent read {Order} article
+ArticleIntent read {Order} article from {Category}
+ArticleIntent read {Order} article from {Category} category
+RepeatArticleIntent repeat article
+RepeatArticleIntent repeat the article
+RepeatArticleIntent read again

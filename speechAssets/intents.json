@@ -1,0 +1,41 @@
+{
+	"intents": [
+		{
+			"intent": "ListCategoryIntent"
+		},
+		{
+			"intent": "ListByCategoryIntent",
+			"slots": [
+				{
+					"name": "Category",
+	          		"type": "LIST_OF_CATEGORIES"
+	          	}
+			]
+		},
+		{
+			"intent": "ArticleIntent",
+			"slots": [
+				{
+					"name": "Order",
+	          		"type": "AMAZON.NUMBER"
+	          	},
+				{
+					"name": "Category",
+	          		"type": "LIST_OF_CATEGORIES"
+	          	}
+			]
+		},
+		{
+			"intent": "RepeatArticleIntent"
+		},
+	    {
+	      "intent": "AMAZON.HelpIntent"
+	    },
+	    {
+	      "intent": "AMAZON.StopIntent"
+	    },
+	    {
+	      "intent": "AMAZON.CancelIntent"
+	    }
+	]
+}
