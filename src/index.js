@@ -5,6 +5,9 @@
 * @date 12-18-2016
 */
 
+// Limitations:
+// - Can read articles from the first page only
+
 
 'use strict';
 
@@ -13,9 +16,8 @@ var APP_ID = process.env.APP_ID;
 var AlexaSkill = require('./AlexaSkill');
 var cheerio = require('cheerio');
 var request = require('request');
-var https = require('https');
 
-var HELP_TEXT = 'TechCrunch helps you to read online articles. ' + 
+var HELP_TEXT = 'TechCrunch Reader helps you to read online articles. ' + 
     'For example, you can ask thinkgs like: read articles from Startup category. ' +
     'Or, list categories. What would you like to read today?';
 var ERROR_TEXT = 'Ooops. Something went wrong.';
@@ -63,6 +65,9 @@ TechCrunchReader.prototype.intentHandlers = {
     ArticleIntent: function(intent, session, response) {
         articleIntent(intent, session, response);
     },
+    NextArticleIntent: function(intent, session, response) {
+        nextArticleIntent(intent, session, response);
+    },
     RepeatArticleIntent: function(intent, session, response) {
         repeatArticleIntent(intent, session, response);
     },
@@ -103,6 +108,7 @@ var listByCategoryIntent = function(intent, session, response) {
         if (data.length) {
             // Set current category and list of urls for the category
             session.attributes.currentCategory = category;
+            session.attributes.currentOrder = 1;  // Reset order
             session.attributes.categoryUrls[category] = [];
             for (var i = 0; i < data.length; i++){
                 var order = i + 1;
@@ -122,62 +128,21 @@ var articleIntent = function(intent, session, response) {
     // Reads article
     var category = cleanCategory(intent.slots.Category);
     var order = intent.slots.Order.value;
-    var speechText = '';
-    var url;
-    var url2;
+    readArticle(intent, session, response, category, order);
+}
 
-    // Set default category
-    if (!category) {
-        // If current category is set, use it
-        if (session.attributes.currentCategory) {
-            category = session.attributes.currentCategory;
-        } else {
-            category = 'news';  // Default category
-        }
-    }
-    if (!session.attributes.categoryUrls[category]) {
-        session.attributes.categoryUrls[category] = [];
-    }
 
-    var isValidOrder = function(order_) {
-        return (order_ !== undefined && order_ > 0 &&
-                order_ <= session.attributes.categoryUrls[category].length);
+var nextArticleIntent = function(intent, session, response) {
+    // Reads next article
+    // Note: If an order exceeds max number of articles it will be reset to order 1
+    var category = cleanCategory(intent.slots.Category);
+    var order = session.attributes.currentOrder;
+    if (order === undefined) {
+        order = 1;
+    } else {
+        order += 1;  // Increment by one
     }
-
-    if (isValidOrder(order)) {
-        url = session.attributes.categoryUrls[category][order-1];
-        requestArticle(url, response, function(title, author, article) {
-            session.attributes.currentCategory = category;
-            session.attributes.currentOrder = order;
-            session.attributes.currentUrl = url;
-            articleResponse(response, title, author, article);
-        }); 
-    } else {  // Order is not set or invalid
-        url = BASE_URL + CATEGORIES[category];
-        // Latest article from news: get list of articles, then get article details
-        requestListArticles(url, response, function(data){
-            if (data.length) {
-                for (var i = 0; i < data.length; i++){
-                    session.attributes.categoryUrls[category].push(data[i][1]);
-                }
-                var index = 0;
-                if (isValidOrder(order)) {
-                    index = order - 1;
-                }
-                url2 = data[index][1];  // Url of the first article
-                requestArticle(url2, response, function(title, author, article) {
-                    session.attributes.currentCategory = category;
-                    session.attributes.currentOrder = 1;
-                    session.attributes.currentUrl = url2;
-                    articleResponse(response, title, author, article);
-                });
-            } else {
-                // Highly unlikely scenario
-                speechText = 'There are no articles to read.';
-                handleErrorResponse(response, speechText);
-            } 
-        });
-    }
+    readArticle(intent, session, response, category, order);
 }
 
 
@@ -210,6 +175,66 @@ var cancelIntent = function(intent, session, response) {
 }
 
 // Utils functions
+
+var readArticle = function(intent, session, response, category, order) {
+    // Util for reading an article. Used in articleIntent and nextArticleIntent
+    var speechText = '';
+    var url;
+    var url2;
+
+    // Set default category
+    if (!category) {
+        // If current category is set, use it
+        if (session.attributes.currentCategory) {
+            category = session.attributes.currentCategory;
+        } else {
+            category = 'news';  // Default category
+        }
+    }
+    if (!session.attributes.categoryUrls[category]) {
+        session.attributes.categoryUrls[category] = [];
+    }
+
+    var isValidOrder = function(order_) {
+        return (order_ !== undefined && order_ > 0 &&
+                order_ <= session.attributes.categoryUrls[category].length);
+    }
+
+    if (isValidOrder(order)) {
+        url = session.attributes.categoryUrls[category][order-1];
+        requestArticle(url, response, function(title, author, article) {
+            session.attributes.currentCategory = category;
+            session.attributes.currentOrder = order;
+            session.attributes.currentUrl = url;
+            articleResponse(response, title, author, article);
+        });
+    } else {  // Order is not set or invalid
+        url = BASE_URL + CATEGORIES[category];
+        // Latest article from news: get list of articles, then get article details
+        requestListArticles(url, response, function(data){
+            if (data.length) {
+                for (var i = 0; i < data.length; i++){
+                    session.attributes.categoryUrls[category].push(data[i][1]);
+                }
+                var index = 0;
+                if (isValidOrder(order)) {
+                    index = order - 1;
+                }
+                url2 = data[index][1];  // Url of the first article
+                requestArticle(url2, response, function(title, author, article) {
+                    session.attributes.currentCategory = category;
+                    session.attributes.currentOrder = 1;
+                    session.attributes.currentUrl = url2;
+                    articleResponse(response, title, author, article);
+                });
+            } else {
+                // Highly unlikely scenario
+                speechText = 'There are no articles to read.';
+                handleErrorResponse(response, speechText);
+            } 
+        });
+    }
+}
 
 var getCategoriesText = function() {
     // Converts list of categories to string

@@ -22,6 +22,10 @@ ArticleIntent article {Order} from {Category} category
 ArticleIntent read {Order} article
 ArticleIntent read {Order} article from {Category}
 ArticleIntent read {Order} article from {Category} category
+NextArticleIntent read next
+NextArticleIntent read next article
+NextArticleIntent read next article from {Category}
+NextArticleIntent read next article from {Category} category
 RepeatArticleIntent repeat article
 RepeatArticleIntent repeat the article
 RepeatArticleIntent read again

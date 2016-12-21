@@ -26,6 +26,15 @@
 			]
 		},
 		{
+			"intent": "NextArticleIntent",
+			"slots": [
+				{
+					"name": "Category",
+	          		"type": "LIST_OF_CATEGORIES"
+	          	}
+			]
+		},
+		{
 			"intent": "RepeatArticleIntent"
 		},
 	    {
