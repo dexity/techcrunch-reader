@@ -13,11 +13,12 @@
 
 var APP_ID = process.env.APP_ID;
 
+var storage = require('./storage');
 var AlexaSkill = require('./AlexaSkill');
 var cheerio = require('cheerio');
 var request = require('request');
 
-var HELP_TEXT = 'TechCrunch Reader helps you to read online articles. ' + 
+var HELP_TEXT = 'Crunch Reader helps you to read online articles from TechCrunch. ' + 
     'For example, you can ask thinkgs like: read articles from Startup category. ' +
     'Or, list categories. What would you like to read today?';
 var ERROR_TEXT = 'Ooops. Something went wrong.';
@@ -46,9 +47,7 @@ TechCrunchReader.prototype.constructor = TechCrunchReader;
 
 TechCrunchReader.prototype.eventHandlers.onSessionStarted = function (sessionStartedRequest, session) {
     console.log('Session started');
-    initSession(session);
 }
-
 
 TechCrunchReader.prototype.eventHandlers.onLaunch = function (launchRequest, session, response) {
     handleAskResponse(response, HELP_TEXT, REPROMPT_TEXT);
@@ -87,14 +86,16 @@ TechCrunchReader.prototype.intentHandlers = {
 var listCategoryIntent = function(intent, session, response) {
     // Lists categories
     var speechText = 'Category options are ' + getCategoriesText();
-    speechText += 'What category would you like to read news from?'
+    speechText += 'What category would you like to read articles from?'
     handleAskResponse(response, speechText, REPROMPT_TEXT);
 }
+
 
 var listByCategoryIntent = function(intent, session, response) {
     // List articles by category
     var category = cleanCategory(intent.slots.Category);
     var repromptQuestion = 'Category options are ' + getCategoriesText();
+    var userId = session.user.userId;
     if (!category) {
         handleErrorResponse(response, repromptQuestion);
     }
@@ -107,28 +108,38 @@ var listByCategoryIntent = function(intent, session, response) {
         var speechText = '';
         if (data.length) {
             // Set current category and list of urls for the category
-            session.attributes.currentCategory = category;
-            session.attributes.currentOrder = 1;  // Reset order
-            session.attributes.categoryUrls[category] = [];
+            var urls = {};
+            urls[category] = [];
             for (var i = 0; i < data.length; i++){
                 var order = i + 1;
                 // Set article urls
-                session.attributes.categoryUrls[category].push(data[i][1]);
+                urls[category].push(data[i][1]);
                 speechText += order + '. ' + data[i][0] + '. ';     
             }
+            var sData = {
+                currentCategory: category,
+                currentOrder: 1,  // Reset order
+                categoryUrls: urls,
+            }
+            storage.saveData(userId, sData, updateCallback);
             handleTellResponse(response, speechText);
-        } else { 
+        } else {
             speechText = 'There are no articles for ' + category + ' category.';
             handleErrorResponse(response, speechText);
         }
     });
 }
 
+
 var articleIntent = function(intent, session, response) {
     // Reads article
     var category = cleanCategory(intent.slots.Category);
     var order = intent.slots.Order.value;
-    readArticle(intent, session, response, category, order);
+    var userId = session.user.userId;
+    storage.loadData(userId, function(error, data) {
+        var sData = formatStorageData(data);
+        readArticle(intent, session, response, sData, category, order);
+    });
 }
 
 
@@ -136,27 +147,33 @@ var nextArticleIntent = function(intent, session, response) {
     // Reads next article
     // Note: If an order exceeds max number of articles it will be reset to order 1
     var category = cleanCategory(intent.slots.Category);
-    var order = session.attributes.currentOrder;
-    if (order === undefined) {
-        order = 1;
-    } else {
-        order += 1;  // Increment by one
-    }
-    readArticle(intent, session, response, category, order);
+    var userId = session.user.userId;
+    storage.loadData(userId, function(error, data) {
+        var order = 1;
+        if (data && data.Item) {
+            order = parseInt(data.Item.currentOrder.N) + 1;
+        }
+        var sData = formatStorageData(data);
+        readArticle(intent, session, response, sData, category, order);
+    });
 }
 
 
 var repeatArticleIntent = function(intent, session, response) {
     // Reads recent article
-    if (session.attributes.currentUrl) {
-        requestArticle(session.attributes.currentUrl, response, 
-                       function(title, author, article) {
-            articleResponse(response, title, author, article);
-        });
-    } else {
-        var speechText = 'There is no recent article.';
-        handleErrorResponse(response, speechText);
-    }
+    var userId = session.user.userId;
+    storage.loadData(userId, function(error, data) {
+        if (data && data.Item.currentUrl.S) {
+            requestArticle(data.Item.currentUrl.S, response, 
+                           function(title, author, article) {
+                articleResponse(response, title, author, article);
+            });
+        } else {
+            console.error('RepeatArticleIntent error: ', error);
+            var speechText = 'There is no recent article.';
+            handleErrorResponse(response, speechText);
+        }
+    });
 }
 
 
@@ -166,46 +183,78 @@ var helpIntent = function (intent, session, response) {
 
 
 var stopIntent = function(intent, session, response) {
-    handleTellResponse(response, 'Goodbye', true);
+    handleTellResponse(response, 'Goodbye');
 }
 
 
 var cancelIntent = function(intent, session, response) {
-    handleTellResponse(response, 'Goodbye', true);
+    handleTellResponse(response, 'Goodbye');
 }
 
 // Utils functions
 
-var readArticle = function(intent, session, response, category, order) {
+var formatStorageData = function(data) {
+    var sData = {};
+    if (!(data && data.Item)) {
+        return {};
+    }
+    var item = data.Item;
+    if (item.currentCategory) {
+        sData.currentCategory = item.currentCategory.S || '';
+    }
+    if (item.currentOrder) {
+        sData.currentOrder = parseInt(item.currentOrder.N) || 1;
+    }
+    if (item.currentUrl) {
+        sData.currentUrl = item.currentUrl.S || '';
+    }
+    if (item.categoryUrls) {
+        sData.categoryUrls = JSON.parse(item.categoryUrls.S) || {};
+    }
+    return sData;
+}
+
+
+var readArticle = function(intent, session, response, sData, category, order) {
     // Util for reading an article. Used in articleIntent and nextArticleIntent
+    var userId = session.user.userId;
     var speechText = '';
     var url;
     var url2;
 
+    console.log('readArticle: category = %s, order = %d', category, order);
     // Set default category
     if (!category) {
         // If current category is set, use it
-        if (session.attributes.currentCategory) {
-            category = session.attributes.currentCategory;
+        if (sData.currentCategory) {
+            category = sData.currentCategory;
         } else {
             category = 'news';  // Default category
         }
     }
-    if (!session.attributes.categoryUrls[category]) {
-        session.attributes.categoryUrls[category] = [];
+    if (!sData.categoryUrls) {
+        sData.categoryUrls = {};
+    }
+    if (!sData.categoryUrls[category]) {
+        sData.categoryUrls[category] = [];
     }
 
     var isValidOrder = function(order_) {
         return (order_ !== undefined && order_ > 0 &&
-                order_ <= session.attributes.categoryUrls[category].length);
+                order_ <= sData.categoryUrls[category].length);
     }
 
     if (isValidOrder(order)) {
-        url = session.attributes.categoryUrls[category][order-1];
+        url = sData.categoryUrls[category][order-1];
+        console.log('Get from categoryUrls: ', sData.categoryUrls);
         requestArticle(url, response, function(title, author, article) {
-            session.attributes.currentCategory = category;
-            session.attributes.currentOrder = order;
-            session.attributes.currentUrl = url;
+            var ssData = {
+                currentCategory: category,
+                currentOrder: order,
+                currentUrl: url,
+                categoryUrls: sData.categoryUrls
+            }
+            storage.saveData(userId, ssData, updateCallback);
             articleResponse(response, title, author, article);
         });
     } else {  // Order is not set or invalid
@@ -214,17 +263,23 @@ var readArticle = function(intent, session, response, category, order) {
         requestListArticles(url, response, function(data){
             if (data.length) {
                 for (var i = 0; i < data.length; i++){
-                    session.attributes.categoryUrls[category].push(data[i][1]);
+                    sData.categoryUrls[category].push(data[i][1]);
                 }
+                console.log('Category urls: ', sData.categoryUrls);
                 var index = 0;
                 if (isValidOrder(order)) {
                     index = order - 1;
                 }
                 url2 = data[index][1];  // Url of the first article
+                console.log('Reading url: %s', url2);
                 requestArticle(url2, response, function(title, author, article) {
-                    session.attributes.currentCategory = category;
-                    session.attributes.currentOrder = 1;
-                    session.attributes.currentUrl = url2;
+                    var ssData = {
+                        currentCategory: category,
+                        currentOrder: 1,
+                        currentUrl: url2,
+                        categoryUrls: sData.categoryUrls
+                    }
+                    storage.saveData(userId, ssData, updateCallback);
                     articleResponse(response, title, author, article);
                 });
             } else {
@@ -304,7 +359,7 @@ var articleResponse = function(response, title, author, article) {
 
 
 var handleResponse = function(response, speechError, speechResponse, speechQuestion,
-                              repromptQuestion, shouldEndSession) {
+                              repromptQuestion) {
     // Handles Alexa response
     var speechOutput;
     var repromptOutput;
@@ -315,7 +370,7 @@ var handleResponse = function(response, speechError, speechResponse, speechQuest
             speech: speechResponse,
             type: AlexaSkill.speechOutputType.PLAIN_TEXT
         };
-        response.tellWithCard(speechOutput, cardTitle, speechResponse, shouldEndSession);
+        response.tellWithCard(speechOutput, cardTitle, speechResponse);
     } else {
         var speechText = speechError;
         var repromptSpeechText = 'What would you like to read?';
@@ -331,15 +386,13 @@ var handleResponse = function(response, speechError, speechResponse, speechQuest
             speech: repromptSpeechText,
             type: AlexaSkill.speechOutputType.PLAIN_TEXT
         };
-        // askWithCard doesn't end session
         response.askWithCard(speechOutput, repromptOutput, cardTitle, speechText.substring(0, 20));
     }
 }
 
 
-var handleTellResponse = function(response, speechResponse, shouldEndSession) {
-    // Doesn't end session by default
-    handleResponse(response, null, speechResponse, null, null, shouldEndSession);
+var handleTellResponse = function(response, speechResponse) {
+    handleResponse(response, null, speechResponse);
 }
 
 
@@ -353,14 +406,11 @@ var handleAskResponse = function(response, speechQuestion, repromptQuestion) {
 }
 
 
-var initSession = function(session) {
-    session.attributes = {
-        currentCategory: '',
-        currentOrder: 1,
-        currentUrl: '',
-        categoryUrls:  {},
+var updateCallback = function(error, data) {
+    if (error) {
+        console.error('User data error: ', error);
     }
-} 
+}
 
 
 exports.handler = function (event, context) {

@@ -10,17 +10,18 @@ Listening online news when driving makes journey more pleasant. TechCrunch Reade
 
 * Node.js
 * Alexa
-* Amazon Lambda 
+* Amazon Lambda
+* Amazon DynamoDB
 
 ## Typical conversation
 
 ```
-- Alexa open Tech Crunch
+- Alexa open crunch reader
 - list categories
 - list articles from startup category
 - read articles
 - read articles from social category
-- read next
+- next
 - read article five
 - read again
 ```
@@ -29,4 +30,6 @@ Listening online news when driving makes journey more pleasant. TechCrunch Reade
 
 ```
 Alexa <--> TechCrunch Reader <--> www.techcrunch.com
+                    |
+            Prefereces (DynamoDB)
 ```

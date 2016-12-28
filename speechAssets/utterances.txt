@@ -22,6 +22,7 @@ ArticleIntent article {Order} from {Category} category
 ArticleIntent read {Order} article
 ArticleIntent read {Order} article from {Category}
 ArticleIntent read {Order} article from {Category} category
+NextArticleIntent next
 NextArticleIntent read next
 NextArticleIntent read next article
 NextArticleIntent read next article from {Category}
