@@ -1,10 +1,16 @@
 # TechCrunch Reader
 
-This is a simple Alexa application for reading TechCrunch online news using Echo. The application is submitted for The Amazon Alexa API Mashup Contest.
+aka Tik Crunch, is a simple Alexa application for reading TechCrunch online news using Echo. The application is submitted for The Amazon Alexa API Mashup Contest.
+
+## Alexa Skill
+
+The application is published in Alexa Skills: https://www.amazon.com/dp/B01NAKQZS7/
+
+Invocation name: `tik crunch`
 
 ## Story
 
-Listening online news when driving makes journey more pleasant. TechCrunch Reader helps you to get your daily briefings on the go controlled by your voice. TechCrunch website has well structured markup that can be used as an open webservice API with no key required :).  
+Listening online news when driving makes journey more pleasant. TechCrunch Reader helps you to get your daily briefings on the go controlled by your voice. TechCrunch website has well structured markup that can be used as an open webservice API with no key required :).
 
 ## Stack
 
@@ -16,7 +22,7 @@ Listening online news when driving makes journey more pleasant. TechCrunch Reade
 ## Typical conversation
 
 ```
-- Alexa open crunch reader
+- Alexa open tik crunch
 - list categories
 - list articles from startup category
 - read articles

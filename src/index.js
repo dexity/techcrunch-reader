@@ -18,7 +18,7 @@ var AlexaSkill = require('./AlexaSkill');
 var cheerio = require('cheerio');
 var request = require('request');
 
-var HELP_TEXT = 'Crunch Reader helps you to read online articles from TechCrunch. ' + 
+var HELP_TEXT = 'Tik Crunch helps you to read online articles from TechCrunch. ' + 
     'For example, you can ask thinkgs like: read articles from Startup category. ' +
     'Or, list categories. What would you like to read today?';
 var ERROR_TEXT = 'Ooops. Something went wrong.';
